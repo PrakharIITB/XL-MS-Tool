@@ -1,0 +1,121 @@
+body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Roboto', sans-serif;
+    background-color: #f5f5f5;
+}
+
+h1, h2, h3, h4, h5, h6, p{
+    margin: 0;
+    padding: 0;
+}
+
+span{
+    margin: 0;
+    padding: 0;
+    color: #fff;
+    text-shadow: 1px 1px #0000009e;
+}
+
+.small-heading{
+    font-size: 1.5rem;
+    color: #ffffff;
+    margin: 1rem 0;
+    text-shadow: 2px 2px #1b1b1b9e;
+}
+
+.main-container{
+    background-image: url('./main-bg1.jpg');
+    background-size: cover;
+    min-width: 100vw;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    /* justify-content: center; */
+    align-items: center;
+    box-shadow: 2px 2px 10px rgb(0, 0, 0);
+    padding: 2rem 0;
+}
+
+.heading{
+    font-size: 3rem;
+    color: #ffffff;
+    margin-bottom: 2rem;
+    text-shadow: 2px 2px #1b1b1b9e;
+    text-align: center;
+}
+
+.form-container{
+    width: 35%;
+    /* height: 50vh; */
+    padding: 2rem 1.5rem;
+    background-color: #0000008f;
+    color: white;
+    border-radius: 10px;
+    box-shadow: 2px 2px 10px rgba(0, 21, 53, 0.1);
+}
+
+.form-container form{
+    display: flex;
+    flex-direction: column;
+}
+
+.form-container form input{
+    margin: 0.2rem 0;
+    padding: 0.5rem;
+    border: none;
+    border-radius: 5px;
+}
+
+.input-container{
+    display: flex;
+    align-items: center;
+    /* display: grid; */
+    /* align-items: center;
+    justify-content: start; */
+    margin-bottom: 1.1rem;
+}
+
+.input-container label{
+    margin-right: 1rem;
+}
+
+.processing{
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    color: white;
+    /* margin: auto; */
+}
+
+.processing h2{
+    text-shadow: 1px 1px #0000009e;
+}
+
+.downloads{
+    display: flex;
+    flex-direction: column;
+    margin: auto;
+}
+
+.downloads a{
+    margin: 0.1rem 0;
+    padding: 0.5rem 1rem;
+    border-radius: 5px;
+    background-color: #0000008f;
+    color: white;
+    text-decoration: none;
+    box-shadow: 2px 2px 10px rgba(0, 21, 53, 0.1);
+}
+
+.select {
+    margin-bottom: 1rem;
+    height: 40px;
+    border-radius: 4px;
+    padding: 0 0.5rem;
+}
+
+label {
+    margin-bottom: 0.4rem;
+}
