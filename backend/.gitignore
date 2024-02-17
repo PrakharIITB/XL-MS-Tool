@@ -1,0 +1,5 @@
+venv/
+.DS_Store
+alphafold_structures/
+manual_structures/
+__pycache__/

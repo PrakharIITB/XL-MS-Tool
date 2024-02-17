@@ -16,16 +16,25 @@ class process_inter:
     def __init__(self, df, fx, threshold, mode="auto"):
         self.df = df
         self.fx = fx
-        self.automated = True
+        self.manual = mode == "manual" 
         self.threshold = threshold
+        self.workdir = os.path.join(
+            os.getcwd(), os.path.join(os.environ["WORKDIR"], "inter")
+        )
+        print(self.workdir)
+
         if mode == "manual":
-            self.automated = False
-        self.workdir = os.path.join(os.environ["WORKDIR"], "inter")
+            self.manual = True
+            os.makedirs(os.path.join(self.workdir, "manual_structures"), exist_ok=True)
+
+        self.workdir = os.path.join(
+            os.getcwd(), os.path.join(os.environ["WORKDIR"], "inter")
+        )
         os.makedirs(self.workdir, exist_ok=True)
+        os.makedirs(os.path.join(self.workdir, "alphafold_structures"), exist_ok=True)
         self.uniprotIds = set(
             list(self.df["uniprotID A"]) + list(self.df["uniprotID B"])
         )
-        print("The original Length: ", len(self.df))
 
         for i in range(len(self.df)):
             try:
@@ -33,14 +42,16 @@ class process_inter:
                 self.fx[df.loc[i, "uniprotID B"]].seq
 
             except:
-                print("Row is being deleted")
                 self.df.drop(i, inplace=True)
 
     def _proteins_from_alphafold(self):
         if not os.path.exists(self.workdir):
             os.makedirs(self.workdir, exist_ok=True)
 
-        os.chdir(self.workdir)
+        os.makedirs(os.path.join(self.workdir, "alphafold_structures"), exist_ok=True)
+
+        os.chdir(os.path.join(self.workdir, "alphafold_structures"))
+
         self.uniprot_ids_fetched = []
         self.uniprot_ids_not_fetched = []
         for uniprot_Id in self.uniprotIds:
@@ -61,6 +72,8 @@ class process_inter:
                 except Exception as e:
                     self.uniprot_ids_not_fetched.append(uniprot_Id)
                     print(f"Error fetching {uniprot_Id}: {e}")
+
+        os.chdir(self.workdir)
 
     def _remove_shared_peptides(self, row):
         """
@@ -106,14 +119,14 @@ class process_inter:
         return self.cleanList(row[1])
 
     def _peptide_starts(self, row):
-        print("Hi")
+
         peptide_a = re.compile(row["Peptide A"])
         peptide_b = re.compile(row["Peptide B"])
         start_list_a = []
         start_list_b = []
 
-        print(peptide_a)
-        print(peptide_b)
+        # print(peptide_a)
+        # print(peptide_b)
 
         for m in peptide_a.finditer(self.fx[row["uniprotID A"]].seq):
             start_list_a.append(m.start())
@@ -166,22 +179,22 @@ class process_inter:
         return:
             dist: distance between the two residues
         """
+        print("Hi, I am here.")
 
         if (
             row["uniprotID A"] in self.uniprot_ids_fetched
             and row["uniprotID B"] in self.uniprot_ids_fetched
         ):
+
             try:
                 proteinA = row["uniprotID A"]
                 proteinB = row["uniprotID B"]
 
-                proteinA = row["uniprotID A"]
-                proteinB = row["uniprotID B"]
                 protein_structA = prd.parseMMCIF(
-                    os.path.join(os.getcwd(), f"{proteinA}.cif")
+                    os.path.join(self.workdir, "alphafold_structures", f"{proteinA}.cif")
                 )
                 protein_structB = prd.parseMMCIF(
-                    os.path.join(os.getcwd(), f"{proteinB}.cif")
+                    os.path.join(self.workdir, "alphafold_structures", f"{proteinB}.cif")
                 )
 
                 pep_a_pos = int(row["Absolute Peptide A-Pos"])
@@ -198,6 +211,54 @@ class process_inter:
                     ".\nThe structure file is not appropriate.",
                 )
                 return "N/A"
+        else:
+            return "N/A"
+
+    def _getResidueDistanceManual(self, row):
+
+        self.manual_workdir = os.path.join(self.workdir, "manual_structures")
+        print("Hi")
+
+        if not os.path.exists(self.manual_workdir):
+            return "N/A"
+
+        proteins_fetched = [i.split(".")[0] for i in os.listdir(self.manual_workdir)]
+
+        if row["uniprotID A"] in proteins_fetched:
+            print("Protein A", row["uniprotID A"], "is in proteins_fetched")
+
+        if (
+            row["uniprotID A"] in proteins_fetched
+            and row["uniprotID B"] in proteins_fetched
+        ):
+
+            try:
+                proteinA = row["uniprotID A"]
+                proteinB = row["uniprotID B"]
+
+                protein_structA = prd.parseMMCIF(
+                    os.path.join(self.manual_workdir, f"{proteinA}.cif")
+                )
+                protein_structB = prd.parseMMCIF(
+                    os.path.join(self.manual_workdir, f"{proteinB}.cif")
+                )
+
+                pep_a_pos = int(row["Absolute Peptide A-Pos"])
+                pep_b_pos = int(row["Absolute Peptide B-Pos"])
+                res_1 = protein_structA.select(f"resnum {pep_a_pos} and name CA")
+                res_2 = protein_structB.select(f"resnum {pep_b_pos} and name CA")
+                dist = prd.calcDistance(res_1, res_2)[0]
+                print("Distance for manual is being calculated")
+                return dist
+
+            except AttributeError:
+                print(
+                    "Unable to compute distance for the protein: ",
+                    row["uniprotID"],
+                    ".\nThe structure file is not appropriate.",
+                )
+                return "N/A"
+
         else:
             return "N/A"
 
@@ -219,7 +280,7 @@ class process_inter:
             lambda row: self._peptide_starts(row), axis=1
         ).copy()
 
-        print("peptide start: ", peptide_starts)
+        # print("peptide start: ", peptide_starts)
         self.XLMS_DF.loc[:, "Peptide A-Pos"] = peptide_starts.apply(
             lambda row: self._peptide_start_a(row)
         )
@@ -243,6 +304,10 @@ class process_inter:
         self.XLMS_DF_NO_SHARED["Distance"] = self.XLMS_DF_NO_SHARED.apply(
             lambda row: self._getResidueDistance(row), axis=1
         )
+        if(self.manual):
+            self.XLMS_DF_NO_SHARED["Distance (Manual)"] = self.XLMS_DF_NO_SHARED.apply(
+                lambda row: self._getResidueDistanceManual(row), axis=1
+            )
 
         self.XLMS_DF_NO_SHARED.to_csv("xlms_output.csv", index=False)
 
@@ -300,19 +365,18 @@ class process_inter:
         plt.close()
 
     def run(self):
-        if self.automated:
-            self._proteins_from_alphafold()
+        self._proteins_from_alphafold()
         self.df_operations()
         self.save_barplot()
         self.save_histplot()
 
 
-# if __name__ == "__main__":
-#     df = pd.read_csv(
-#         "data/Inter_Dataset_Test_DH307.xlsx - Mitoold_noFAIMS_all_Crosslinks.csv"
-#     )
-#     fx = pyfx.Fasta("data/Mouse_Database.gz", key_func=lambda x: x.split("|")[1])
-#     os.environ["WORKDIR"] = "output/"
-#     process = process_inter(df, fx, threshold=30)
-#     process.run()
-#     print("Inter Proximity Processed.")
+if __name__ == "__main__":
+    df = pd.read_csv(
+        "data/Inter_Dataset_Test_DH307.xlsx - Mitoold_noFAIMS_all_Crosslinks.csv"
+    )
+    fx = pyfx.Fasta("data/Mouse_Database.gz", key_func=lambda x: x.split("|")[1])
+    os.environ["WORKDIR"] = "output/"
+    process = process_inter(df, fx, threshold=30, mode="manual")
+    process.run()
+    print("Inter Proximity Processed.")

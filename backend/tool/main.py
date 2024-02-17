@@ -6,7 +6,7 @@ import os
 
 
 class mainApp:
-    def __init__(self, threshold, data, fasta, option=None): 
+    def __init__(self, threshold, data, fasta, option=None, mode="auto"): 
         # df = pd.read_excel("data/Kamal_Data_Input.xlsx")
         # fx = pyfx.Fasta("data/Human_Database.gz", key_func=lambda x: x.split("|")[1])
         print('in mainApp')
@@ -16,13 +16,13 @@ class mainApp:
 
         if option == "intra" or option == "loop":
             print('Intra Proximity Started.')
-            process = process_intra(df, fx, threshold=30)
+            process = process_intra(df, fx, threshold, mode)
             process.run()
             print("Intra Proximity Processed.")
 
         if option == "inter":
             print('Inter Proximity Started.')
-            process = process_inter(df, fx, threshold=30)
+            process = process_inter(df, fx, threshold, mode)
             process.run()
             print("Inter Proximity Processed.")
 

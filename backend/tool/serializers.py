@@ -5,7 +5,9 @@ from .models import *
 class UploadedFileSerializer(serializers.ModelSerializer):
     class Meta:
         model = UploadedFile
-        fields = ['csv_file', 'gz_file']
+        fields = ['csv_file', 'gz_file', 'zip_file']
+    
+    zip_file = serializers.FileField(required=False)
 
 class ProcessedFilesSerializer(serializers.ModelSerializer):
     class Meta:

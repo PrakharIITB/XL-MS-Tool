@@ -16,11 +16,19 @@ class process_intra:
     def __init__(self, df, fx, threshold, mode="auto"):
         self.df = df
         self.fx = fx
-        self.automated = True
+        self.manual = False
+        self.workdir = os.path.join(
+            os.getcwd(), os.path.join(os.environ["WORKDIR"], "intra")
+        )
+        if mode == "manual":
+            self.manual = True
+
         self.threshold = threshold
+        self.manual_workdir = os.path.join(self.workdir, "manual_structures")
         if mode == "manual":
             self.automated = False
-        self.workdir = os.path.join(os.environ["WORKDIR"], "intra")
+            os.makedirs(self.manual_workdir, exist_ok=True)
+
         os.makedirs(self.workdir, exist_ok=True)
         self.uniprot_Ids = list(self.df["uniprotID"].unique())
 
@@ -125,10 +133,13 @@ class process_intra:
             raise Exception("Residue Location Format Incorrect.")
 
     def _proteins_from_alphafold(self):
+
         if not os.path.exists(self.workdir):
             os.makedirs(self.workdir, exist_ok=True)
+        self.alphafold_dir = os.path.join(self.workdir, "alphafold_structures")
+        os.makedirs(self.alphafold_dir, exist_ok=True)
 
-        os.chdir(self.workdir)
+        os.chdir(self.alphafold_dir)
         self.uniprot_ids_fetched = []
         self.uniprot_ids_not_fetched = []
         for uniprot_Id in self.uniprot_Ids:
@@ -150,16 +161,16 @@ class process_intra:
                     self.uniprot_ids_not_fetched.append(uniprot_Id)
                     print(f"Error fetching {uniprot_Id}: {e}")
 
-        print(self.uniprot_ids_not_fetched)
+        os.chdir(self.workdir)
 
     def _getResidueDistance(self, row):
         protein = row["uniprotID"]
         if protein in self.uniprot_ids_fetched:
 
             try:
-                path = os.path.join(self.workdir, f"{protein}.cif")
-                print(os.path.join(os.getcwd(), f"{protein}.cif"))
-                path = os.path.join(os.getcwd(), f"{protein}.cif")
+                # path = os.path.join(self.workdir, f"{protein}.cif")
+                # print(os.path.join(os.getcwd(), f"{protein}.cif"))
+                path = os.path.join(self.workdir, "alphafold_structures", f"{protein}.cif")
                 structure = prd.parseMMCIF(path)
                 print("structure parsed")
                 pep_a_pos = int(row["Absolute Peptide A-Pos"])
@@ -169,8 +180,9 @@ class process_intra:
                 dist = prd.calcDistance(res_1, res_2)[0]
                 return dist
 
-            except AttributeError:
+            except Exception as e:
                 # TODO: Add logging
+                print(e)
                 print(
                     "Unable to compute distance for the protein: ",
                     row["uniprotID"],
@@ -181,6 +193,41 @@ class process_intra:
         else:
             # TODO: Add logging
             print(f"Protein {protein} not fetched from AlphaFold.")
+            return pd.NA
+
+    def _getResidueDistanceManual(self, row):
+        print("I am here")
+        if not os.path.exists(self.manual_workdir):
+            return pd.NA
+
+        proteins_fetched = [i.split(".")[0] for i in os.listdir(self.manual_workdir)]
+        print(proteins_fetched)
+        if row["uniprotID"] in proteins_fetched:
+
+            try:
+                protein = row["uniprotID"]
+
+                protein_struct = prd.parseMMCIF(
+                    os.path.join(self.manual_workdir, f"{protein}.cif")
+                )
+                print("structure parsed")
+                pep_a_pos = int(row["Absolute Peptide A-Pos"])
+                pep_b_pos = int(row["Absolute Peptide B-Pos"])
+                res_1 = protein_struct.select(f"resnum {pep_a_pos} and name CA")
+                res_2 = protein_struct.select(f"resnum {pep_b_pos} and name CA")
+                dist = prd.calcDistance(res_1, res_2)[0]
+                print("Distance for manual is being calculated")
+                return dist
+
+            except AttributeError:
+                print(
+                    "Unable to compute distance for the protein: ",
+                    row["uniprotID"],
+                    ".\nThe structure file is not appropriate.",
+                )
+                return pd.NA
+
+        else:
             return pd.NA
 
     def df_operations(self):
@@ -231,12 +278,47 @@ class process_intra:
         self.XLMS_DF_NO_SHARED["Distance"] = self.XLMS_DF_NO_SHARED.apply(
             lambda row: self._getResidueDistance(row), axis=1
         )
+        print("Hiiiiiii")
+        self.XLMS_DF_NO_SHARED["Distance_Manual"] = self.XLMS_DF_NO_SHARED.apply(
+            lambda row: self._getResidueDistanceManual(row), axis=1
+        )
 
         self.distances = self.XLMS_DF_NO_SHARED["Distance"].to_numpy()
         self.XLMS_DF_NO_SHARED.to_csv("xlms_output.csv", index=False)
 
+    # def save_barplot(self):
+    #     self.XLMS_DF_NO_SHARED.dropna()
+    #     Barplot = self.XLMS_DF_NO_SHARED.plot.bar(y="Distance", rot=0)
+    #     plt.axhline(y=self.threshold, color="r", linestyle="dashed")
+    #     Barplot.set_title("Distance_Residue Bar_Plot", fontdict={"fontsize": 12})
+    #     # Barplot.set_xlabel("Score_1",fontdict= { 'fontsize': 10})
+    #     Barplot.axes.get_xaxis().set_visible(False)
+    #     Barplot.set_ylabel("Cα-Cα Distance", fontdict={"fontsize": 10})
+    #     plt.savefig(
+    #         fname="intra_barplot",
+    #         dpi=600,
+    #         bbox_inches="tight",
+    #     )
+    #     plt.close()
+        
     def save_barplot(self):
-        self.XLMS_DF_NO_SHARED.dropna()
+        # Convert "Distance" column to numeric
+        self.XLMS_DF_NO_SHARED["Distance"] = pd.to_numeric(
+            self.XLMS_DF_NO_SHARED["Distance"], errors="coerce"
+        )
+
+        # Check for missing values after conversion
+        missing_values = self.XLMS_DF_NO_SHARED["Distance"].isnull().sum()
+        if missing_values > 0:
+            print(
+                "Warning: There are {} missing or non-numeric values in the 'Distance' column. These rows will be dropped.".format(
+                    missing_values
+                )
+            )
+            # Drop rows with missing or non-numeric values
+            self.XLMS_DF_NO_SHARED = self.XLMS_DF_NO_SHARED.dropna(subset=["Distance"])
+
+        # Proceed with plotting
         Barplot = self.XLMS_DF_NO_SHARED.plot.bar(y="Distance", rot=0)
         plt.axhline(y=self.threshold, color="r", linestyle="dashed")
         Barplot.set_title("Distance_Residue Bar_Plot", fontdict={"fontsize": 12})
@@ -291,17 +373,16 @@ class process_intra:
         plt.close()
 
     def run(self):
-        if self.automated:
-            self._proteins_from_alphafold()
+        self._proteins_from_alphafold()
         self.df_operations()
-        # self.save_barplot()
+        self.save_barplot()
         self.save_histplot()
 
 
-# if __name__ == "__main__":
-#     df = pd.read_excel("data/Kamal_Data_Input.xlsx")
-#     fx = pyfx.Fasta("data/Human_Database.gz", key_func=lambda x: x.split("|")[1])
-#     os.environ["WORKDIR"] = "output/"
-#     process = process_intra(df, fx, threshold=30)
-#     process.run()
-#     print("Intra Proximity Processed.")
+if __name__ == "__main__":
+    df = pd.read_excel("data/Kamal_Data_Input.xlsx")
+    fx = pyfx.Fasta("data/Human_Database.gz", key_func=lambda x: x.split("|")[1])
+    os.environ["WORKDIR"] = "output/"
+    process = process_intra(df, fx, threshold=30, mode="manual")
+    process.run()
+    print("Intra Proximity Processed.")

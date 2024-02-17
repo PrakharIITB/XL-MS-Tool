@@ -3,6 +3,7 @@ from django.db import models
 class UploadedFile(models.Model):
     csv_file = models.FileField(upload_to='static/csv/')
     gz_file = models.FileField(upload_to='static/gz/')
+    zip_file = models.FileField(upload_to='static/zip/', blank=True, default=None, null=True)
 
 class CSVFile(models.Model):
     csv_file = models.FileField(upload_to='static/output/')
