@@ -29,7 +29,7 @@ class process_intra:
             self.automated = False
             os.makedirs(self.manual_workdir, exist_ok=True)
 
-        os.makedirs(self.workdir, exist_ok=True)
+        # os.makedirs(self.workdir, exist_ok=True)
         self.uniprot_Ids = list(self.df["uniprotID"].unique())
 
     def _peptide_starts(self, row):
@@ -196,7 +196,6 @@ class process_intra:
             return pd.NA
 
     def _getResidueDistanceManual(self, row):
-        print("I am here")
         if not os.path.exists(self.manual_workdir):
             return pd.NA
 
@@ -278,7 +277,6 @@ class process_intra:
         self.XLMS_DF_NO_SHARED["Distance"] = self.XLMS_DF_NO_SHARED.apply(
             lambda row: self._getResidueDistance(row), axis=1
         )
-        print("Hiiiiiii")
         self.XLMS_DF_NO_SHARED["Distance_Manual"] = self.XLMS_DF_NO_SHARED.apply(
             lambda row: self._getResidueDistanceManual(row), axis=1
         )

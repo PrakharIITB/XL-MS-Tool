@@ -13,6 +13,11 @@ from .main import mainApp
 from .validate import Validate
 import shutil
 
+CSV_PATH = os.path.join(os.getcwd(), 'output', 'static', 'csv')
+GZ_PATH = os.path.join(os.getcwd(), 'output', 'static', 'gz')
+ZIP_PATH = os.path.join(os.getcwd(), 'output', 'static', 'zip')
+WORKDIR = os.path.join(os.getcwd(), 'output')
+
 def delete_files(dir, ext=None):
     if ext:
         files = [f for f in os.listdir(dir) if f.endswith(ext)]
@@ -51,7 +56,7 @@ def unzip_folder(zip_file_path, extract_to_path):
 
 
 
-class FileUploadAPIView(APIView):
+class AutomaticProcessAPIView(APIView):
     def post(self, request):
         serializer = UploadedFileSerializer(data=request.data)
         choice = request.data['choice']
@@ -60,16 +65,16 @@ class FileUploadAPIView(APIView):
         currtime = time.time()
         if serializer.is_valid():
             serializer.save()
-            workdir = "/Users/prakhar/Files/Work/DH307/Tool/backend/output"
-            csv_file = os.listdir(workdir+'/static/csv')[0]
-            gz_file = os.listdir(workdir+'/static/gz')[0]
+            csv_file = os.path.join(CSV_PATH, os.listdir(CSV_PATH)[0])
+            gz_file = os.path.join(GZ_PATH, os.listdir(GZ_PATH)[0])
+            print(csv_file, gz_file)
             print('Processing the files...')
-            process = mainApp(threshold, workdir+'/static/csv/'+csv_file, workdir+'/static/gz/'+gz_file, choice)
+            process = mainApp(threshold, csv_file, gz_file, choice)
 
             print('Time taken to process the files: ', time.time()-currtime)
             created_img_files = []
             created_csv_files = []
-            files = os.listdir(os.path.join(workdir, choice))
+            files = os.listdir(os.path.join(WORKDIR, choice))
             for file in files:
                 if file.endswith('.csv') or file.endswith('.xlsx'):
                     csv_file_obj = CSVFile.objects.create(
@@ -82,9 +87,9 @@ class FileUploadAPIView(APIView):
                     )
                     created_img_files.append(img_file_obj)
                 
-                delete_files(workdir+'/static/csv')
-                delete_files(workdir+'/static/gz')
-                delete_files(workdir+"/"+choice+"/alphafold_structures", '.cif')
+                delete_files(CSV_PATH)
+                delete_files(GZ_PATH)
+                delete_files(os.path.join(WORKDIR, choice, "alphafold_structures"), '.cif')
 
             csv_files_objects = CSVFileSerializer(created_csv_files, many=True)
             img_files_objects = ImgFileSerializer(created_img_files, many=True)
@@ -96,6 +101,8 @@ class FileUploadAPIView(APIView):
 
 
             return Response(response_data, status=status.HTTP_201_CREATED)
+            # return Response(status=status.HTTP_200_OK, data={'message': 'Files processed successfully'})
+
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -117,21 +124,18 @@ class ValidateAPIView(APIView):
         choice = request.data['choice']
         if serializer.is_valid():
             serializer.save()
-            workdir = "/Users/prakhar/Files/Work/DH307/Tool/backend/output"
-            csv_file = os.listdir(workdir+'/static/csv')[0]
-            zip_file = os.listdir(workdir+'/static/zip')[0]
-            validate = Validate(workdir+'/static/zip/'+zip_file, workdir+'/static/csv/'+csv_file, choice)
+            csv_file = os.path.join(CSV_PATH, os.listdir(CSV_PATH)[0])
+            zip_file = os.path.join(ZIP_PATH, os.listdir(ZIP_PATH)[0])
+            validate = Validate(zip_file, csv_file, choice)
             result = validate.validate()
-            print(result)
             return JsonResponse(status=status.HTTP_201_CREATED, data=result)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     def delete(self, request):
-        workdir = "/Users/prakhar/Files/Work/DH307/Tool/backend/output"
-        delete_files(workdir+'/static/csv')
-        delete_files(workdir+'/static/gz')
-        delete_files(workdir+'/static/zip')
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        delete_files(CSV_PATH)
+        delete_files(GZ_PATH)
+        delete_files(ZIP_PATH)
+        return Response(status=status.HTTP_204_NO_CONTENT, message='Files deleted successfully')
     
 class ProcessManualView(APIView):
     def post(self, request):
@@ -139,16 +143,15 @@ class ProcessManualView(APIView):
             threshold = int(request.data['threshold'])
             choice  = request.data['choice']
             print('Choice: ', choice)
-            workdir = "/Users/prakhar/Files/Work/DH307/Tool/backend/output"
-            csv_file = os.listdir(workdir+'/static/csv')[0]
-            gz_file = os.listdir(workdir+'/static/gz')[0]
-            zip_file = os.listdir(workdir+'/static/zip')[0]
-            unzip_folder(workdir+'/static/zip/'+zip_file, workdir+"/"+choice+"/"+"manual_structures")
+            csv_file = os.path.join(CSV_PATH, os.listdir(CSV_PATH)[0])
+            zip_file = os.path.join(ZIP_PATH, os.listdir(ZIP_PATH)[0])
+            gz_file = os.path.join(GZ_PATH, os.listdir(GZ_PATH)[0])
+            unzip_folder(zip_file, os.path.join(WORKDIR, choice, 'manual_structures'))
             print('Processing the files...')
-            process = mainApp(threshold, workdir+'/static/csv/'+csv_file, workdir+'/static/gz/'+gz_file, choice, "manual")
+            process = mainApp(threshold, csv_file, gz_file, choice, "manual")
             created_img_files = []
             created_csv_files = []
-            files = os.listdir(os.path.join(workdir, choice))
+            files = os.listdir(os.path.join(WORKDIR, choice))
             for file in files:
                 if file.endswith('.csv') or file.endswith('.xlsx'):
                     csv_file_obj = CSVFile.objects.create(
@@ -161,11 +164,11 @@ class ProcessManualView(APIView):
                     )
                     created_img_files.append(img_file_obj)
                 
-            delete_files(workdir+'/static/csv')
-            delete_files(workdir+'/static/gz')
-            delete_files(workdir+'/static/zip')
-            delete_files(workdir+"/"+choice+"/manual_structures", '.cif')
-            delete_files(workdir+"/"+choice+"/alphafold_structures", '.cif')
+            delete_files(CSV_PATH)
+            delete_files(GZ_PATH)
+            delete_files(ZIP_PATH)
+            delete_files(os.path.join(WORKDIR, choice, "alphafold_structures"), '.cif')
+            delete_files(os.path.join(WORKDIR, choice, "manual_structures"), '.cif')
 
             # delete_files(workdir+'/'+choice, '.cif')
             csv_files_objects = CSVFileSerializer(created_csv_files, many=True)

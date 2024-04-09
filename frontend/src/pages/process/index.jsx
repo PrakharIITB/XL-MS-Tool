@@ -132,7 +132,7 @@ const Process = () => {
 
   return (
     <div className="main-container">
-      <h1 className="heading">XL-MS Tool Developed by IITB</h1>
+      <h1 className="heading">AlphaCross-XL (Developer Version)</h1>
       {pageStatus === 1 ? (
         <div className="form-container">
           <form action="post" onSubmit={handleSubmit}>
@@ -153,9 +153,9 @@ const Process = () => {
               <option disabled selected>
                 Choose from the list
               </option>
-              <option value="inter">Interlink</option>
               <option value="intra">Intralink</option>
               <option value="intra">Looplink</option>
+              <option disabled>Interlink (Coming Soon)</option>
               <option disabled>Monolink (Coming Soon)</option>
               <option disabled>Multiple Links (Coming Soon)</option>
             </select>

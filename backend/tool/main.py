@@ -12,7 +12,7 @@ class mainApp:
         print('in mainApp')
         df = pd.read_csv(data)
         fx = pyfx.Fasta(fasta, key_func=lambda x: x.split("|")[1])
-        os.environ["WORKDIR"] = "/Users/prakhar/Files/Work/DH307/Tool/backend/output"
+        os.environ["WORKDIR"] = os.path.join(os.getcwd(), 'output')
 
         if option == "intra" or option == "loop":
             print('Intra Proximity Started.')
